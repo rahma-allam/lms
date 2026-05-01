@@ -1,0 +1,117 @@
+import { useI18n } from "@/lib/i18n";
+import { motion } from "framer-motion";
+import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
+import { usePixelTracking } from "@/hooks/use-pixel-tracking";
+import { Button } from "@/components/ui/button";
+import { Users, PlayCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function Courses() {
+  const { t, lang } = useI18n();
+  const { trackPurchase } = usePixelTracking();
+  
+  const { data: courses, isLoading } = useListCourses(
+    { status: 'active' },
+    { query: { queryKey: getListCoursesQueryKey({ status: 'active' }) } }
+  );
+
+  const handleBuyNow = (price: number) => {
+    trackPurchase(price);
+    // Proceed to checkout logic
+  };
+
+  return (
+    <section id="courses" className="py-20">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <motion.h2 
+            className="text-3xl md:text-4xl font-bold tracking-tight mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            {t("courses.title")}
+          </motion.h2>
+          <motion.p 
+            className="text-lg text-muted-foreground"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            {t("courses.subtitle")}
+          </motion.p>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="rounded-2xl border border-border overflow-hidden">
+                <Skeleton className="h-48 w-full" />
+                <div className="p-6">
+                  <Skeleton className="h-6 w-2/3 mb-4" />
+                  <Skeleton className="h-4 w-1/3 mb-6" />
+                  <div className="flex justify-between items-center mt-6">
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-32" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {courses?.map((course, index) => (
+              <motion.div
+                key={course.id}
+                className="group bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <div className="relative h-48 bg-muted overflow-hidden">
+                  {course.thumbnailUrl ? (
+                    <img 
+                      src={course.thumbnailUrl} 
+                      alt={lang === 'en' ? course.title : (course.titleAr || course.title)} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/40">
+                      <PlayCircle className="w-16 h-16" />
+                    </div>
+                  )}
+                  <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                    {course.moduleCount} Modules
+                  </div>
+                </div>
+                
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold mb-2 line-clamp-2">
+                    {lang === 'en' ? course.title : (course.titleAr || course.title)}
+                  </h3>
+                  
+                  <div className="flex items-center text-muted-foreground text-sm mb-6 mt-auto">
+                    <Users className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                    <span>{course.studentCount} {t("courses.students")}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
+                    <div className="text-2xl font-bold text-primary">
+                      ${course.price}
+                    </div>
+                    <Button onClick={() => handleBuyNow(course.price)}>
+                      {t("courses.buy")}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

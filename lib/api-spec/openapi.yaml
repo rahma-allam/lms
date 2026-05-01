@@ -1,22 +1,35 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LMS Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: courses
+    description: Course management
+  - name: students
+    description: Student management
+  - name: modules
+    description: Course modules
+  - name: lessons
+    description: Lessons within modules
+  - name: payments
+    description: Financial tracking
+  - name: settings
+    description: Platform settings
+  - name: dashboard
+    description: Dashboard analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,470 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent platform activity
+      responses:
+        "200":
+          description: Recent activity list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /courses:
+    get:
+      operationId: listCourses
+      tags: [courses]
+      summary: List all courses
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, draft, archived]
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Course"
+    post:
+      operationId: createCourse
+      tags: [courses]
+      summary: Create a new course
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseBody"
+      responses:
+        "201":
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+
+  /courses/{id}:
+    get:
+      operationId: getCourse
+      tags: [courses]
+      summary: Get a course by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Course
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDetail"
+    put:
+      operationId: updateCourse
+      tags: [courses]
+      summary: Update a course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseBody"
+      responses:
+        "200":
+          description: Updated course
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+    delete:
+      operationId: deleteCourse
+      tags: [courses]
+      summary: Delete a course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /courses/{courseId}/modules:
+    get:
+      operationId: listModules
+      tags: [modules]
+      summary: List modules for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Modules list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Module"
+    post:
+      operationId: createModule
+      tags: [modules]
+      summary: Create a module
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleBody"
+      responses:
+        "201":
+          description: Module created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Module"
+
+  /modules/{moduleId}/lessons:
+    get:
+      operationId: listLessons
+      tags: [lessons]
+      summary: List lessons in a module
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lessons list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+    post:
+      operationId: createLesson
+      tags: [lessons]
+      summary: Create a lesson
+      parameters:
+        - name: moduleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLessonBody"
+      responses:
+        "201":
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  /lessons/{id}:
+    put:
+      operationId: updateLesson
+      tags: [lessons]
+      summary: Update a lesson
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLessonBody"
+      responses:
+        "200":
+          description: Updated lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+    delete:
+      operationId: deleteLesson
+      tags: [lessons]
+      summary: Delete a lesson
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List all students
+      parameters:
+        - name: courseId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, pending]
+        - name: paymentStatus
+          in: query
+          schema:
+            type: string
+            enum: [paid, pending, overdue]
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Students list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Enroll a new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentBody"
+      responses:
+        "201":
+          description: Student enrolled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+
+  /students/{id}:
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get student by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentDetail"
+    put:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update a student
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentBody"
+      responses:
+        "200":
+          description: Updated student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+    delete:
+      operationId: deleteStudent
+      tags: [students]
+      summary: Delete a student
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List all payment records
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [completed, pending, failed, refunded]
+        - name: studentId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record a payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentBody"
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/{id}:
+    put:
+      operationId: updatePayment
+      tags: [payments]
+      summary: Update a payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentBody"
+      responses:
+        "200":
+          description: Updated payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/summary:
+    get:
+      operationId: getPaymentSummary
+      tags: [payments]
+      summary: Get financial summary (revenue, pending)
+      responses:
+        "200":
+          description: Payment summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSummary"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get platform settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update platform settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsBody"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +508,411 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    DashboardSummary:
+      type: object
+      properties:
+        totalStudents:
+          type: integer
+        activeStudents:
+          type: integer
+        totalCourses:
+          type: integer
+        totalRevenue:
+          type: number
+        pendingRevenue:
+          type: number
+        thisMonthRevenue:
+          type: number
+        enrollmentsThisMonth:
+          type: integer
+        completionRate:
+          type: number
+      required:
+        - totalStudents
+        - activeStudents
+        - totalCourses
+        - totalRevenue
+        - pendingRevenue
+        - thisMonthRevenue
+        - enrollmentsThisMonth
+        - completionRate
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [enrollment, payment, course_created, lesson_completed]
+        description:
+          type: string
+        studentName:
+          type: string
+          nullable: true
+        courseName:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, type, description, createdAt]
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+        status:
+          type: string
+          enum: [active, draft, archived]
+        thumbnailUrl:
+          type: string
+          nullable: true
+        studentCount:
+          type: integer
+        moduleCount:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, title, price, status, studentCount, moduleCount, createdAt]
+
+    CourseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Course"
+        - type: object
+          properties:
+            modules:
+              type: array
+              items:
+                $ref: "#/components/schemas/Module"
+          required: [modules]
+
+    CreateCourseBody:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+        status:
+          type: string
+          enum: [active, draft, archived]
+        thumbnailUrl:
+          type: string
+          nullable: true
+      required: [title, price, status]
+
+    Module:
+      type: object
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        order:
+          type: integer
+        lessonCount:
+          type: integer
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lesson"
+      required: [id, courseId, title, order, lessonCount]
+
+    CreateModuleBody:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        order:
+          type: integer
+      required: [title, order]
+
+    Lesson:
+      type: object
+      properties:
+        id:
+          type: integer
+        moduleId:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [video, pdf, text]
+        videoUrl:
+          type: string
+          nullable: true
+        pdfUrl:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        duration:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+      required: [id, moduleId, title, type, order]
+
+    CreateLessonBody:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [video, pdf, text]
+        videoUrl:
+          type: string
+          nullable: true
+        pdfUrl:
+          type: string
+          nullable: true
+        content:
+          type: string
+          nullable: true
+        duration:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+      required: [title, type, order]
+
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, pending]
+        courseId:
+          type: integer
+          nullable: true
+        courseName:
+          type: string
+          nullable: true
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
+        progress:
+          type: number
+        enrolledAt:
+          type: string
+      required: [id, name, email, status, paymentStatus, progress, enrolledAt]
+
+    StudentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Student"
+        - type: object
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Payment"
+          required: [payments]
+
+    CreateStudentBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        courseId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, pending]
+        paymentStatus:
+          type: string
+          enum: [paid, pending, overdue]
+      required: [name, email, status, paymentStatus]
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        studentName:
+          type: string
+          nullable: true
+        courseId:
+          type: integer
+          nullable: true
+        courseName:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [completed, pending, failed, refunded]
+        method:
+          type: string
+          enum: [bank_transfer, cash, card, online]
+        notes:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, studentId, amount, status, method, createdAt]
+
+    CreatePaymentBody:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        courseId:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+        status:
+          type: string
+          enum: [completed, pending, failed, refunded]
+        method:
+          type: string
+          enum: [bank_transfer, cash, card, online]
+        notes:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          nullable: true
+      required: [studentId, amount, status, method]
+
+    PaymentSummary:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+        pendingRevenue:
+          type: number
+        thisMonthRevenue:
+          type: number
+        lastMonthRevenue:
+          type: number
+        totalTransactions:
+          type: integer
+        completedTransactions:
+          type: integer
+        pendingTransactions:
+          type: integer
+      required:
+        - totalRevenue
+        - pendingRevenue
+        - thisMonthRevenue
+        - lastMonthRevenue
+        - totalTransactions
+        - completedTransactions
+        - pendingTransactions
+
+    Settings:
+      type: object
+      properties:
+        id:
+          type: integer
+        academyName:
+          type: string
+        academyNameAr:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        metaPixelId:
+          type: string
+          nullable: true
+        googleTagId:
+          type: string
+          nullable: true
+        tiktokPixelId:
+          type: string
+          nullable: true
+        defaultLanguage:
+          type: string
+          enum: [en, ar]
+        currency:
+          type: string
+      required: [id, academyName, defaultLanguage, currency]
+
+    UpdateSettingsBody:
+      type: object
+      properties:
+        academyName:
+          type: string
+        academyNameAr:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        metaPixelId:
+          type: string
+          nullable: true
+        googleTagId:
+          type: string
+          nullable: true
+        tiktokPixelId:
+          type: string
+          nullable: true
+        defaultLanguage:
+          type: string
+          enum: [en, ar]
+        currency:
+          type: string
+      required: [academyName, defaultLanguage, currency]

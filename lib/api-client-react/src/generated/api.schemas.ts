@@ -48,6 +48,15 @@ export const CourseStatus = {
   archived: "archived",
 } as const;
 
+export type CourseCourseType =
+  | (typeof CourseCourseType)[keyof typeof CourseCourseType]
+  | null;
+
+export const CourseCourseType = {
+  recorded: "recorded",
+  live: "live",
+} as const;
+
 export interface Course {
   id: number;
   title: string;
@@ -55,6 +64,7 @@ export interface Course {
   description?: string | null;
   price: number;
   status: CourseStatus;
+  courseType?: CourseCourseType;
   thumbnailUrl?: string | null;
   studentCount: number;
   moduleCount: number;
@@ -92,8 +102,21 @@ export interface Module {
   lessons?: Lesson[];
 }
 
+export interface CourseSession {
+  id: number;
+  courseId: number;
+  title: string;
+  titleAr?: string | null;
+  scheduledAt: string;
+  durationMinutes: number;
+  zoomLink?: string | null;
+  zoomPassword?: string | null;
+  order: number;
+}
+
 export type CourseDetail = Course & {
   modules: Module[];
+  sessions: CourseSession[];
 };
 
 export type CreateCourseBodyStatus =
@@ -105,13 +128,33 @@ export const CreateCourseBodyStatus = {
   archived: "archived",
 } as const;
 
+export type CreateCourseBodyCourseType =
+  | (typeof CreateCourseBodyCourseType)[keyof typeof CreateCourseBodyCourseType]
+  | null;
+
+export const CreateCourseBodyCourseType = {
+  recorded: "recorded",
+  live: "live",
+} as const;
+
 export interface CreateCourseBody {
   title: string;
   titleAr?: string | null;
   description?: string | null;
   price: number;
   status: CreateCourseBodyStatus;
+  courseType?: CreateCourseBodyCourseType;
   thumbnailUrl?: string | null;
+}
+
+export interface CreateCourseSessionBody {
+  title: string;
+  titleAr?: string | null;
+  scheduledAt: string;
+  durationMinutes: number;
+  zoomLink?: string | null;
+  zoomPassword?: string | null;
+  order: number;
 }
 
 export interface CreateModuleBody {

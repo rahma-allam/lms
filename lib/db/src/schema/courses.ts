@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const courseStatusEnum = pgEnum("course_status", ["active", "draft", "archived"]);
 export const lessonTypeEnum = pgEnum("lesson_type", ["video", "pdf", "text"]);
+export const courseTypeEnum = pgEnum("course_type", ["recorded", "live"]);
 
 export const coursesTable = pgTable("courses", {
   id: serial("id").primaryKey(),
@@ -12,6 +13,7 @@ export const coursesTable = pgTable("courses", {
   description: text("description"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
   status: courseStatusEnum("status").notNull().default("draft"),
+  courseType: courseTypeEnum("course_type").notNull().default("recorded"),
   thumbnailUrl: text("thumbnail_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -39,9 +41,23 @@ export const lessonsTable = pgTable("lessons", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const courseSessionsTable = pgTable("course_sessions", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").notNull().references(() => coursesTable.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  titleAr: text("title_ar"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(90),
+  zoomLink: text("zoom_link"),
+  zoomPassword: text("zoom_password"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertCourseSchema = createInsertSchema(coursesTable).omit({ id: true, createdAt: true });
 export const insertModuleSchema = createInsertSchema(modulesTable).omit({ id: true, createdAt: true });
 export const insertLessonSchema = createInsertSchema(lessonsTable).omit({ id: true, createdAt: true });
+export const insertCourseSessionSchema = createInsertSchema(courseSessionsTable).omit({ id: true, createdAt: true });
 
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
 export type Course = typeof coursesTable.$inferSelect;
@@ -49,3 +65,5 @@ export type InsertModule = z.infer<typeof insertModuleSchema>;
 export type Module = typeof modulesTable.$inferSelect;
 export type InsertLesson = z.infer<typeof insertLessonSchema>;
 export type Lesson = typeof lessonsTable.$inferSelect;
+export type CourseSession = typeof courseSessionsTable.$inferSelect;
+export type InsertCourseSession = z.infer<typeof insertCourseSessionSchema>;

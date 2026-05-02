@@ -3,28 +3,35 @@ import { motion } from "framer-motion";
 import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { usePixelTracking } from "@/hooks/use-pixel-tracking";
 import { Button } from "@/components/ui/button";
-import { Users, PlayCircle } from "lucide-react";
+import { Users, PlayCircle, Radio, ShoppingCart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
+import { cn } from "@/lib/utils";
 
 export default function Courses() {
   const { t, lang } = useI18n();
   const { trackPurchase } = usePixelTracking();
-  
+  const [, navigate] = useLocation();
+
   const { data: courses, isLoading } = useListCourses(
-    { status: 'active' },
-    { query: { queryKey: getListCoursesQueryKey({ status: 'active' }) } }
+    { status: "active" },
+    { query: { queryKey: getListCoursesQueryKey({ status: "active" }) } }
   );
 
-  const handleBuyNow = (price: number) => {
+  const handleBuyNow = (courseId: number, price: number) => {
     trackPurchase(price);
-    // Proceed to checkout logic
+    navigate(`/checkout?courseId=${courseId}`);
+  };
+
+  const handleViewCourse = (courseId: number) => {
+    navigate(`/course/${courseId}`);
   };
 
   return (
     <section id="courses" className="py-20">
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <motion.h2 
+          <motion.h2
             className="text-3xl md:text-4xl font-bold tracking-tight mb-4"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -33,7 +40,7 @@ export default function Courses() {
           >
             {t("courses.title")}
           </motion.h2>
-          <motion.p 
+          <motion.p
             className="text-lg text-muted-foreground"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -62,53 +69,78 @@ export default function Courses() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {courses?.map((course, index) => (
-              <motion.div
-                key={course.id}
-                className="group bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <div className="relative h-48 bg-muted overflow-hidden">
-                  {course.thumbnailUrl ? (
-                    <img 
-                      src={course.thumbnailUrl} 
-                      alt={lang === 'en' ? course.title : (course.titleAr || course.title)} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/40">
-                      <PlayCircle className="w-16 h-16" />
+            {courses?.map((course, index) => {
+              const isLive = course.courseType === "live";
+              return (
+                <motion.div
+                  key={course.id}
+                  className="group bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col cursor-pointer"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  onClick={() => handleViewCourse(course.id)}
+                >
+                  <div className="relative h-48 bg-muted overflow-hidden">
+                    {course.thumbnailUrl ? (
+                      <img
+                        src={course.thumbnailUrl}
+                        alt={lang === "en" ? course.title : (course.titleAr || course.title)}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/40">
+                        {isLive ? <Radio className="w-16 h-16" /> : <PlayCircle className="w-16 h-16" />}
+                      </div>
+                    )}
+                    <div className="absolute top-4 ltr:right-4 rtl:left-4 flex gap-2">
+                      <span
+                        className={cn(
+                          "text-xs font-semibold px-3 py-1 rounded-full backdrop-blur-sm",
+                          isLive
+                            ? "bg-red-500/90 text-white"
+                            : "bg-background/90 text-foreground"
+                        )}
+                      >
+                        {isLive ? t("courses.live") : t("courses.recorded")}
+                      </span>
                     </div>
-                  )}
-                  <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
-                    {course.moduleCount} Modules
+                    {course.moduleCount > 0 && (
+                      <div className="absolute bottom-4 ltr:left-4 rtl:right-4 bg-background/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium">
+                        {course.moduleCount} {t("courses.modules")}
+                      </div>
+                    )}
                   </div>
-                </div>
-                
-                <div className="p-6 flex flex-col flex-1">
-                  <h3 className="text-xl font-bold mb-2 line-clamp-2">
-                    {lang === 'en' ? course.title : (course.titleAr || course.title)}
-                  </h3>
-                  
-                  <div className="flex items-center text-muted-foreground text-sm mb-6 mt-auto">
-                    <Users className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
-                    <span>{course.studentCount} {t("courses.students")}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
-                    <div className="text-2xl font-bold text-primary">
-                      ${course.price}
+
+                  <div className="p-6 flex flex-col flex-1">
+                    <h3 className="text-xl font-bold mb-2 line-clamp-2">
+                      {lang === "en" ? course.title : (course.titleAr || course.title)}
+                    </h3>
+
+                    <div className="flex items-center text-muted-foreground text-sm mb-4">
+                      <Users className="w-4 h-4 ltr:mr-2 rtl:ml-2 shrink-0" />
+                      <span>
+                        {course.studentCount} {t("courses.students")}
+                      </span>
                     </div>
-                    <Button onClick={() => handleBuyNow(course.price)}>
-                      {t("courses.buy")}
-                    </Button>
+
+                    <div
+                      className="flex items-center justify-between mt-auto pt-4 border-t border-border"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="text-2xl font-bold text-primary">${course.price}</div>
+                      <Button
+                        onClick={() => handleBuyNow(course.id, course.price)}
+                        className="gap-2"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        {t("courses.buy")}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

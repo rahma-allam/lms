@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { coursesTable, modulesTable, lessonsTable, studentsTable, activityTable } from "@workspace/db";
+import { coursesTable, modulesTable, lessonsTable, studentsTable, activityTable, courseSessionsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { CreateCourseBody } from "@workspace/api-zod";
 
@@ -9,9 +9,7 @@ const router = Router();
 router.get("/", async (req, res) => {
   try {
     const { status } = req.query;
-
     const courses = await db.select().from(coursesTable).orderBy(sql`${coursesTable.createdAt} desc`);
-
     const filtered = status ? courses.filter((c) => c.status === status) : courses;
 
     const enriched = await Promise.all(
@@ -20,12 +18,10 @@ router.get("/", async (req, res) => {
           .select({ count: sql<number>`count(*)::int` })
           .from(modulesTable)
           .where(eq(modulesTable.courseId, course.id));
-
         const [studentCount] = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(studentsTable)
           .where(eq(studentsTable.courseId, course.id));
-
         return {
           id: course.id,
           title: course.title,
@@ -33,6 +29,7 @@ router.get("/", async (req, res) => {
           description: course.description ?? null,
           price: Number(course.price),
           status: course.status,
+          courseType: course.courseType ?? "recorded",
           thumbnailUrl: course.thumbnailUrl ?? null,
           studentCount: studentCount?.count ?? 0,
           moduleCount: moduleCount?.count ?? 0,
@@ -55,11 +52,16 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: parsed.error.format() });
     }
 
-    const { title, titleAr, description, price, status, thumbnailUrl } = parsed.data;
+    const { title, titleAr, description, price, status, courseType, thumbnailUrl } = parsed.data;
 
     const [course] = await db
       .insert(coursesTable)
-      .values({ title, titleAr: titleAr ?? null, description: description ?? null, price: String(price), status, thumbnailUrl: thumbnailUrl ?? null })
+      .values({
+        title, titleAr: titleAr ?? null, description: description ?? null,
+        price: String(price), status,
+        courseType: (courseType as "recorded" | "live") ?? "recorded",
+        thumbnailUrl: thumbnailUrl ?? null,
+      })
       .returning();
 
     await db.insert(activityTable).values({
@@ -69,19 +71,66 @@ router.post("/", async (req, res) => {
     });
 
     res.status(201).json({
-      id: course!.id,
-      title: course!.title,
-      titleAr: course!.titleAr ?? null,
-      description: course!.description ?? null,
-      price: Number(course!.price),
-      status: course!.status,
+      id: course!.id, title: course!.title, titleAr: course!.titleAr ?? null,
+      description: course!.description ?? null, price: Number(course!.price),
+      status: course!.status, courseType: course!.courseType ?? "recorded",
       thumbnailUrl: course!.thumbnailUrl ?? null,
-      studentCount: 0,
-      moduleCount: 0,
-      createdAt: course!.createdAt.toISOString(),
+      studentCount: 0, moduleCount: 0, createdAt: course!.createdAt.toISOString(),
     });
   } catch (err) {
     req.log.error({ err }, "Error creating course");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/:id/sessions", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id!);
+    const sessions = await db
+      .select()
+      .from(courseSessionsTable)
+      .where(eq(courseSessionsTable.courseId, id))
+      .orderBy(courseSessionsTable.order);
+
+    res.json(sessions.map((s) => ({
+      id: s.id, courseId: s.courseId, title: s.title, titleAr: s.titleAr ?? null,
+      scheduledAt: s.scheduledAt.toISOString(),
+      durationMinutes: s.durationMinutes,
+      zoomLink: s.zoomLink ?? null, zoomPassword: s.zoomPassword ?? null,
+      order: s.order,
+    })));
+  } catch (err) {
+    req.log.error({ err }, "Error listing sessions");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/:id/sessions", async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.id!);
+    const { title, titleAr, scheduledAt, durationMinutes, zoomLink, zoomPassword, order } = req.body;
+
+    const [session] = await db
+      .insert(courseSessionsTable)
+      .values({
+        courseId, title, titleAr: titleAr ?? null,
+        scheduledAt: new Date(scheduledAt),
+        durationMinutes: durationMinutes ?? 90,
+        zoomLink: zoomLink ?? null, zoomPassword: zoomPassword ?? null,
+        order: order ?? 0,
+      })
+      .returning();
+
+    res.status(201).json({
+      id: session!.id, courseId: session!.courseId, title: session!.title,
+      titleAr: session!.titleAr ?? null,
+      scheduledAt: session!.scheduledAt.toISOString(),
+      durationMinutes: session!.durationMinutes,
+      zoomLink: session!.zoomLink ?? null, zoomPassword: session!.zoomPassword ?? null,
+      order: session!.order,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Error creating session");
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -90,36 +139,29 @@ router.get("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id!);
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
-
     if (!course) return res.status(404).json({ error: "Course not found" });
 
     const modules = await db.select().from(modulesTable).where(eq(modulesTable.courseId, id)).orderBy(modulesTable.order);
-
     const modulesWithLessons = await Promise.all(
       modules.map(async (mod) => {
         const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.moduleId, mod.id)).orderBy(lessonsTable.order);
         return {
-          id: mod.id,
-          courseId: mod.courseId,
-          title: mod.title,
-          titleAr: mod.titleAr ?? null,
-          order: mod.order,
-          lessonCount: lessons.length,
+          id: mod.id, courseId: mod.courseId, title: mod.title, titleAr: mod.titleAr ?? null,
+          order: mod.order, lessonCount: lessons.length,
           lessons: lessons.map((l) => ({
-            id: l.id,
-            moduleId: l.moduleId,
-            title: l.title,
-            titleAr: l.titleAr ?? null,
-            type: l.type,
-            videoUrl: l.videoUrl ?? null,
-            pdfUrl: l.pdfUrl ?? null,
-            content: l.content ?? null,
-            duration: l.duration ?? null,
-            order: l.order,
+            id: l.id, moduleId: l.moduleId, title: l.title, titleAr: l.titleAr ?? null,
+            type: l.type, videoUrl: l.videoUrl ?? null, pdfUrl: l.pdfUrl ?? null,
+            content: l.content ?? null, duration: l.duration ?? null, order: l.order,
           })),
         };
       })
     );
+
+    const sessions = await db
+      .select()
+      .from(courseSessionsTable)
+      .where(eq(courseSessionsTable.courseId, id))
+      .orderBy(courseSessionsTable.order);
 
     const [studentCount] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -127,17 +169,20 @@ router.get("/:id", async (req, res) => {
       .where(eq(studentsTable.courseId, id));
 
     res.json({
-      id: course.id,
-      title: course.title,
-      titleAr: course.titleAr ?? null,
-      description: course.description ?? null,
-      price: Number(course.price),
-      status: course.status,
+      id: course.id, title: course.title, titleAr: course.titleAr ?? null,
+      description: course.description ?? null, price: Number(course.price),
+      status: course.status, courseType: course.courseType ?? "recorded",
       thumbnailUrl: course.thumbnailUrl ?? null,
-      studentCount: studentCount?.count ?? 0,
-      moduleCount: modules.length,
+      studentCount: studentCount?.count ?? 0, moduleCount: modules.length,
       createdAt: course.createdAt.toISOString(),
       modules: modulesWithLessons,
+      sessions: sessions.map((s) => ({
+        id: s.id, courseId: s.courseId, title: s.title, titleAr: s.titleAr ?? null,
+        scheduledAt: s.scheduledAt.toISOString(),
+        durationMinutes: s.durationMinutes,
+        zoomLink: s.zoomLink ?? null, zoomPassword: s.zoomPassword ?? null,
+        order: s.order,
+      })),
     });
   } catch (err) {
     req.log.error({ err }, "Error fetching course");
@@ -153,11 +198,16 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ error: parsed.error.format() });
     }
 
-    const { title, titleAr, description, price, status, thumbnailUrl } = parsed.data;
+    const { title, titleAr, description, price, status, courseType, thumbnailUrl } = parsed.data;
 
     const [course] = await db
       .update(coursesTable)
-      .set({ title, titleAr: titleAr ?? null, description: description ?? null, price: String(price), status, thumbnailUrl: thumbnailUrl ?? null })
+      .set({
+        title, titleAr: titleAr ?? null, description: description ?? null,
+        price: String(price), status,
+        courseType: (courseType as "recorded" | "live") ?? "recorded",
+        thumbnailUrl: thumbnailUrl ?? null,
+      })
       .where(eq(coursesTable.id, id))
       .returning();
 
@@ -167,22 +217,17 @@ router.put("/:id", async (req, res) => {
       .select({ count: sql<number>`count(*)::int` })
       .from(modulesTable)
       .where(eq(modulesTable.courseId, id));
-
     const [studentCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(studentsTable)
       .where(eq(studentsTable.courseId, id));
 
     res.json({
-      id: course.id,
-      title: course.title,
-      titleAr: course.titleAr ?? null,
-      description: course.description ?? null,
-      price: Number(course.price),
-      status: course.status,
+      id: course.id, title: course.title, titleAr: course.titleAr ?? null,
+      description: course.description ?? null, price: Number(course.price),
+      status: course.status, courseType: course.courseType ?? "recorded",
       thumbnailUrl: course.thumbnailUrl ?? null,
-      studentCount: studentCount?.count ?? 0,
-      moduleCount: moduleCount?.count ?? 0,
+      studentCount: studentCount?.count ?? 0, moduleCount: moduleCount?.count ?? 0,
       createdAt: course.createdAt.toISOString(),
     });
   } catch (err) {
@@ -211,23 +256,12 @@ router.get("/:courseId/modules", async (req, res) => {
       modules.map(async (mod) => {
         const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.moduleId, mod.id)).orderBy(lessonsTable.order);
         return {
-          id: mod.id,
-          courseId: mod.courseId,
-          title: mod.title,
-          titleAr: mod.titleAr ?? null,
-          order: mod.order,
-          lessonCount: lessons.length,
+          id: mod.id, courseId: mod.courseId, title: mod.title, titleAr: mod.titleAr ?? null,
+          order: mod.order, lessonCount: lessons.length,
           lessons: lessons.map((l) => ({
-            id: l.id,
-            moduleId: l.moduleId,
-            title: l.title,
-            titleAr: l.titleAr ?? null,
-            type: l.type,
-            videoUrl: l.videoUrl ?? null,
-            pdfUrl: l.pdfUrl ?? null,
-            content: l.content ?? null,
-            duration: l.duration ?? null,
-            order: l.order,
+            id: l.id, moduleId: l.moduleId, title: l.title, titleAr: l.titleAr ?? null,
+            type: l.type, videoUrl: l.videoUrl ?? null, pdfUrl: l.pdfUrl ?? null,
+            content: l.content ?? null, duration: l.duration ?? null, order: l.order,
           })),
         };
       })
@@ -251,13 +285,8 @@ router.post("/:courseId/modules", async (req, res) => {
       .returning();
 
     res.status(201).json({
-      id: mod!.id,
-      courseId: mod!.courseId,
-      title: mod!.title,
-      titleAr: mod!.titleAr ?? null,
-      order: mod!.order,
-      lessonCount: 0,
-      lessons: [],
+      id: mod!.id, courseId: mod!.courseId, title: mod!.title,
+      titleAr: mod!.titleAr ?? null, order: mod!.order, lessonCount: 0, lessons: [],
     });
   } catch (err) {
     req.log.error({ err }, "Error creating module");

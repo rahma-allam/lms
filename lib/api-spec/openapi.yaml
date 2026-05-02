@@ -159,6 +159,50 @@ paths:
         "204":
           description: Deleted
 
+  /courses/{id}/sessions:
+    get:
+      operationId: listCourseSessions
+      tags: [courses]
+      summary: List sessions for a course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseSession"
+    post:
+      operationId: createCourseSession
+      tags: [courses]
+      summary: Create a session for a course
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseSessionBody"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseSession"
+
   /courses/{courseId}/modules:
     get:
       operationId: listModules
@@ -580,6 +624,10 @@ components:
         status:
           type: string
           enum: [active, draft, archived]
+        courseType:
+          type: string
+          enum: [recorded, live]
+          nullable: true
         thumbnailUrl:
           type: string
           nullable: true
@@ -600,7 +648,11 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/Module"
-          required: [modules]
+            sessions:
+              type: array
+              items:
+                $ref: "#/components/schemas/CourseSession"
+          required: [modules, sessions]
 
     CreateCourseBody:
       type: object
@@ -618,10 +670,62 @@ components:
         status:
           type: string
           enum: [active, draft, archived]
+        courseType:
+          type: string
+          enum: [recorded, live]
+          nullable: true
         thumbnailUrl:
           type: string
           nullable: true
       required: [title, price, status]
+
+    CourseSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+        durationMinutes:
+          type: integer
+        zoomLink:
+          type: string
+          nullable: true
+        zoomPassword:
+          type: string
+          nullable: true
+        order:
+          type: integer
+      required: [id, courseId, title, scheduledAt, durationMinutes, order]
+
+    CreateCourseSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+        durationMinutes:
+          type: integer
+        zoomLink:
+          type: string
+          nullable: true
+        zoomPassword:
+          type: string
+          nullable: true
+        order:
+          type: integer
+      required: [title, scheduledAt, durationMinutes, order]
 
     Module:
       type: object

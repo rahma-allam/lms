@@ -20,7 +20,9 @@ import type {
   ActivityItem,
   Course,
   CourseDetail,
+  CourseSession,
   CreateCourseBody,
+  CreateCourseSessionBody,
   CreateLessonBody,
   CreateModuleBody,
   CreatePaymentBody,
@@ -708,6 +710,180 @@ export const useDeleteCourse = <
   TContext
 > => {
   return useMutation(getDeleteCourseMutationOptions(options));
+};
+
+/**
+ * @summary List sessions for a course
+ */
+export const getListCourseSessionsUrl = (id: number) => {
+  return `/api/courses/${id}/sessions`;
+};
+
+export const listCourseSessions = async (
+  id: number,
+  options?: RequestInit,
+): Promise<CourseSession[]> => {
+  return customFetch<CourseSession[]>(getListCourseSessionsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCourseSessionsQueryKey = (id: number) => {
+  return [`/api/courses/${id}/sessions`] as const;
+};
+
+export const getListCourseSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCourseSessions>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourseSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCourseSessionsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCourseSessions>>
+  > = ({ signal }) => listCourseSessions(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCourseSessions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCourseSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCourseSessions>>
+>;
+export type ListCourseSessionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List sessions for a course
+ */
+
+export function useListCourseSessions<
+  TData = Awaited<ReturnType<typeof listCourseSessions>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCourseSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCourseSessionsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a session for a course
+ */
+export const getCreateCourseSessionUrl = (id: number) => {
+  return `/api/courses/${id}/sessions`;
+};
+
+export const createCourseSession = async (
+  id: number,
+  createCourseSessionBody: CreateCourseSessionBody,
+  options?: RequestInit,
+): Promise<CourseSession> => {
+  return customFetch<CourseSession>(getCreateCourseSessionUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCourseSessionBody),
+  });
+};
+
+export const getCreateCourseSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCourseSession>>,
+    TError,
+    { id: number; data: BodyType<CreateCourseSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCourseSession>>,
+  TError,
+  { id: number; data: BodyType<CreateCourseSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["createCourseSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCourseSession>>,
+    { id: number; data: BodyType<CreateCourseSessionBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createCourseSession(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCourseSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCourseSession>>
+>;
+export type CreateCourseSessionMutationBody = BodyType<CreateCourseSessionBody>;
+export type CreateCourseSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a session for a course
+ */
+export const useCreateCourseSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCourseSession>>,
+    TError,
+    { id: number; data: BodyType<CreateCourseSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCourseSession>>,
+  TError,
+  { id: number; data: BodyType<CreateCourseSessionBody> },
+  TContext
+> => {
+  return useMutation(getCreateCourseSessionMutationOptions(options));
 };
 
 /**

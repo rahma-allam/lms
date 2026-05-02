@@ -15,6 +15,7 @@ export const CourseDetail = zod
     description: zod.string().nullish(),
     price: zod.number(),
     status: zod.enum(["active", "draft", "archived"]),
+    courseType: zod.enum(["recorded", "live"]).nullish(),
     thumbnailUrl: zod.string().nullish(),
     studentCount: zod.number(),
     moduleCount: zod.number(),
@@ -46,6 +47,19 @@ export const CourseDetail = zod
               }),
             )
             .optional(),
+        }),
+      ),
+      sessions: zod.array(
+        zod.object({
+          id: zod.number(),
+          courseId: zod.number(),
+          title: zod.string(),
+          titleAr: zod.string().nullish(),
+          scheduledAt: zod.string(),
+          durationMinutes: zod.number(),
+          zoomLink: zod.string().nullish(),
+          zoomPassword: zod.string().nullish(),
+          order: zod.number(),
         }),
       ),
     }),

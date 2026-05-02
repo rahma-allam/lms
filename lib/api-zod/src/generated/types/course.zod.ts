@@ -14,6 +14,7 @@ export const Course = zod.object({
   description: zod.string().nullish(),
   price: zod.number(),
   status: zod.enum(["active", "draft", "archived"]),
+  courseType: zod.enum(["recorded", "live"]).nullish(),
   thumbnailUrl: zod.string().nullish(),
   studentCount: zod.number(),
   moduleCount: zod.number(),

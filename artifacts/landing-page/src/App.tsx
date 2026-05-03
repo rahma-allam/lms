@@ -5,7 +5,11 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import LandingPage from "./pages/LandingPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import CoursePage from "./pages/CoursePage";
+import { setBaseUrl } from "@workspace/api-client-react";
+import RegisterPage from "./pages/RegisterPage";
+import LoginPage from "./pages/LoginPage";
 
+setBaseUrl("http://localhost:3000/"); 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -22,6 +26,8 @@ function Routes() {
       <Route path="/" component={LandingPage} />
       <Route path="/checkout" component={CheckoutPage} />
       <Route path="/course/:id" component={CoursePage} />
+      <Route path="/register" component={RegisterPage} />
+      <Route path="/login" component={LoginPage} />
       <Route component={LandingPage} />
     </Switch>
   );

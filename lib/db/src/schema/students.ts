@@ -11,9 +11,12 @@ export const paymentRecordStatusEnum = pgEnum("payment_record_status", ["complet
 export const studentsTable = pgTable("students", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(), // أضفنا unique عشان الإيميل ميتكررش
+  password: text("password").notNull(),    // حقل أساسي لعملية الـ Login
   phone: text("phone"),
   status: studentStatusEnum("status").notNull().default("pending"),
+  // ملاحظة: الحقول اللي تحت دي (courseId, paymentStatus) يفضل تكون في جدول منفصل 
+  // لو الطالب يقدر يشترك في أكتر من كورس، لكن كبداية سريعة مفيش مشكلة.
   courseId: integer("course_id").references(() => coursesTable.id, { onDelete: "set null" }),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   progress: numeric("progress", { precision: 5, scale: 2 }).notNull().default("0"),
@@ -28,6 +31,7 @@ export const paymentsTable = pgTable("payments", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   status: paymentRecordStatusEnum("status").notNull().default("pending"),
   method: paymentMethodEnum("method").notNull().default("cash"),
+  receiptUrl: text("receipt_url"),
   notes: text("notes"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

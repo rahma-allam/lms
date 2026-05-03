@@ -100,19 +100,16 @@ const filtered = coursesArray.filter((c: any) => {
 });
 
 const onSubmit = (data: any) => {
-  const payload = {
-    title: data.title,
-    titleAr: data.titleAr || null,
-    description: data.description || null,
-    price: Number(data.price),
-    status: data.status,
-    courseType: data.courseType || "recorded",
-  };
-
-  // جرب تبعت الـ payload مباشرة بدون JSON.stringify
   createCourse.mutate({
-    body: payload, 
-  } as any);
+    data: {                          // ✅ "data" مش "body"
+      title: data.title,
+      titleAr: data.titleAr || null,
+      description: data.description || null,
+      price: Number(data.price),
+      status: data.status,
+      courseType: data.courseType || "recorded",
+    },
+  });
 };
   return (
     <div className="space-y-5 max-w-7xl mx-auto" dir="rtl">

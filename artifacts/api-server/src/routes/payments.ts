@@ -6,6 +6,7 @@ import { CreatePaymentBody } from "@workspace/api-zod";
 
 const router = Router();
 
+// 1. ملخص المدفوعات (Summary)
 router.get("/summary", async (req, res) => {
   try {
     const now = new Date();
@@ -40,11 +41,12 @@ router.get("/summary", async (req, res) => {
   }
 });
 
+// 2. قائمة المدفوعات (بما في ذلك رابط الصورة للداشبورد)
 router.get("/", async (req, res) => {
   try {
     const { status, studentId } = req.query;
 
-    let payments = await db
+    let query = db
       .select({
         payment: paymentsTable,
         studentName: studentsTable.name,
@@ -54,6 +56,8 @@ router.get("/", async (req, res) => {
       .leftJoin(studentsTable, eq(paymentsTable.studentId, studentsTable.id))
       .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id))
       .orderBy(sql`${paymentsTable.createdAt} desc`);
+
+    let payments = await query;
 
     if (status) payments = payments.filter((p) => p.payment.status === status);
     if (studentId) payments = payments.filter((p) => p.payment.studentId === parseInt(studentId as string));
@@ -68,6 +72,7 @@ router.get("/", async (req, res) => {
         amount: Number(payment.amount),
         status: payment.status,
         method: payment.method,
+        receiptUrl: payment.receiptUrl ?? null, // أضفنا هذا الحقل ليظهر في الداشبورد
         notes: payment.notes ?? null,
         paidAt: payment.paidAt?.toISOString() ?? null,
         createdAt: payment.createdAt.toISOString(),
@@ -79,14 +84,16 @@ router.get("/", async (req, res) => {
   }
 });
 
+// 3. إنشاء عملية دفع جديدة (من صفحة الـ Checkout)
 router.post("/", async (req, res) => {
   try {
+    // ملاحظة: تأكدي من تحديث CreatePaymentBody في ملف الـ zod ليشمل receiptUrl
     const parsed = CreatePaymentBody.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.format() });
     }
 
-    const { studentId, courseId, amount, status, method, notes, paidAt } = parsed.data;
+    const { studentId, courseId, amount, status, method, notes, paidAt, receiptUrl } = parsed.data as any;
 
     const [payment] = await db
       .insert(paymentsTable)
@@ -94,46 +101,32 @@ router.post("/", async (req, res) => {
         studentId,
         courseId: courseId ?? null,
         amount: String(amount),
-        status,
+        status: status || "pending",
         method,
+        receiptUrl: receiptUrl ?? null, // حفظ رابط الصورة هنا
         notes: notes ?? null,
         paidAt: paidAt ? new Date(paidAt as string) : null,
       })
       .returning();
 
     const [student] = await db.select({ name: studentsTable.name }).from(studentsTable).where(eq(studentsTable.id, studentId));
-    let courseName: string | null = null;
-    if (courseId) {
-      const [course] = await db.select({ title: coursesTable.title }).from(coursesTable).where(eq(coursesTable.id, courseId));
-      courseName = course?.title ?? null;
-    }
-
+    
+    // إذا تم الدفع بنجاح فوراً (مثلاً بطاقة ائتمانية)
     if (status === "completed") {
+      await db.update(studentsTable).set({ paymentStatus: "paid" }).where(eq(studentsTable.id, studentId));
+      
       await db.insert(activityTable).values({
         type: "payment",
         description: `Payment of $${amount} received from ${student?.name ?? "student"}`,
         studentName: student?.name ?? null,
-        courseName: courseName ?? null,
         amount: String(amount),
       });
-
-      if (student) {
-        await db.update(studentsTable).set({ paymentStatus: "paid" }).where(eq(studentsTable.id, studentId));
-      }
     }
 
     res.status(201).json({
-      id: payment!.id,
-      studentId: payment!.studentId,
-      studentName: student?.name ?? null,
-      courseId: payment!.courseId ?? null,
-      courseName,
-      amount: Number(payment!.amount),
-      status: payment!.status,
-      method: payment!.method,
-      notes: payment!.notes ?? null,
-      paidAt: payment!.paidAt?.toISOString() ?? null,
-      createdAt: payment!.createdAt.toISOString(),
+      ...payment,
+      amount: Number(payment.amount),
+      studentName: student?.name ?? null
     });
   } catch (err) {
     req.log.error({ err }, "Error creating payment");
@@ -141,6 +134,7 @@ router.post("/", async (req, res) => {
   }
 });
 
+// 4. تحديث حالة الدفع (تستخدم من قبل الأدمن لقبول الطلب بعد رؤية الصورة)
 router.put("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id!);
@@ -149,7 +143,7 @@ router.put("/:id", async (req, res) => {
       return res.status(400).json({ error: parsed.error.format() });
     }
 
-    const { studentId, courseId, amount, status, method, notes, paidAt } = parsed.data;
+    const { studentId, courseId, amount, status, method, notes, paidAt, receiptUrl } = parsed.data as any;
 
     const [payment] = await db
       .update(paymentsTable)
@@ -159,6 +153,7 @@ router.put("/:id", async (req, res) => {
         amount: String(amount),
         status,
         method,
+        receiptUrl: receiptUrl ?? null,
         notes: notes ?? null,
         paidAt: paidAt ? new Date(paidAt as string) : null,
       })
@@ -167,25 +162,26 @@ router.put("/:id", async (req, res) => {
 
     if (!payment) return res.status(404).json({ error: "Payment not found" });
 
-    const [student] = await db.select({ name: studentsTable.name }).from(studentsTable).where(eq(studentsTable.id, payment.studentId));
-    let courseName: string | null = null;
-    if (payment.courseId) {
-      const [course] = await db.select({ title: coursesTable.title }).from(coursesTable).where(eq(coursesTable.id, payment.courseId));
-      courseName = course?.title ?? null;
+    // لو الأدمن وافق على الطلب (Completed)
+    if (status === "completed") {
+      // 1. تحديث حالة الطالب لـ "Paid"
+      await db.update(studentsTable)
+        .set({ paymentStatus: "paid" })
+        .where(eq(studentsTable.id, payment.studentId));
+
+      // 2. تسجيل النشاط
+      const [student] = await db.select({ name: studentsTable.name }).from(studentsTable).where(eq(studentsTable.id, payment.studentId));
+      await db.insert(activityTable).values({
+        type: "payment",
+        description: `Admin confirmed payment of $${amount} for ${student?.name}`,
+        studentName: student?.name ?? null,
+        amount: String(amount),
+      });
     }
 
     res.json({
-      id: payment.id,
-      studentId: payment.studentId,
-      studentName: student?.name ?? null,
-      courseId: payment.courseId ?? null,
-      courseName,
-      amount: Number(payment.amount),
-      status: payment.status,
-      method: payment.method,
-      notes: payment.notes ?? null,
-      paidAt: payment.paidAt?.toISOString() ?? null,
-      createdAt: payment.createdAt.toISOString(),
+      ...payment,
+      amount: Number(payment.amount)
     });
   } catch (err) {
     req.log.error({ err }, "Error updating payment");

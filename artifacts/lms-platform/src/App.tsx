@@ -13,6 +13,7 @@ import Payments from "@/pages/Payments";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
 import { setBaseUrl } from "@workspace/api-client-react";
+import Instructors from "./pages/Instructors";
 
 
 setBaseUrl("http://localhost:3000/"); 
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/students/:id" component={StudentDetail} />
         <Route path="/payments" component={Payments} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/instructors" component={Instructors} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -54,7 +56,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <AppRoutes />
           </WouterRouter>
-          <Toaster richColors position="top-end" />
+          <Toaster richColors position="top-right" />
         </I18nProvider>
       </QueryClientProvider>
     </ThemeProvider>

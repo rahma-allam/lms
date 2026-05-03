@@ -28,7 +28,7 @@ export function JoinCourseModal({ isOpen, onClose, course }: JoinCourseModalProp
 أريد المساعدة في اختيار الكورس المناسب لطفلي.`
     : `السلام عليكم، أريد الانضمام لكورس: ${course?.titleAr || course?.title} ...`; // الرسالة القديمة
 
-  const whatsappUrl = `https://wa.me/01113964910?text=${encodeURIComponent(message)}`;
+  const whatsappUrl = `https://wa.me/+201113964910?text=${encodeURIComponent(message)}`;
   window.open(whatsappUrl, "_blank");
   onClose(); 
 };

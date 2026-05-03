@@ -1,9 +1,12 @@
 import { useI18n } from "@/lib/i18n";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { JoinCourseModal } from "./JoinCourseModal";
+import { useState } from "react";
 
 export default function Hero() {
   const { t, lang } = useI18n();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
@@ -51,15 +54,20 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Button size="lg" className="w-full sm:w-auto text-base h-14 px-8 rounded-full">
+            <Button size="lg" className="w-full sm:w-auto text-base h-14 px-8 rounded-full" onClick={() => setIsModalOpen(true)}>
               {t('hero.cta.join')}
             </Button>
             <Button size="lg" variant="outline" className="w-full sm:w-auto text-base h-14 px-8 rounded-full">
-              {t('hero.cta.explore')}
+              <a href="#courses">{t('hero.cta.explore')}</a> 
             </Button>
           </motion.div>
         </div>
       </div>
+       <JoinCourseModal 
+              isOpen={isModalOpen} 
+              onClose={() => setIsModalOpen(false)} 
+              course={null} 
+            />
     </section>
   );
 }

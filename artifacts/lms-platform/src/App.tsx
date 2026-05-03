@@ -12,7 +12,10 @@ import StudentDetail from "@/pages/StudentDetail";
 import Payments from "@/pages/Payments";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
+import { setBaseUrl } from "@workspace/api-client-react";
 
+
+setBaseUrl("http://localhost:3000/"); 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,6 +24,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+
+
+
 
 function AppRoutes() {
   return (

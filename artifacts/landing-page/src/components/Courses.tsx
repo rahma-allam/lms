@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { usePixelTracking } from "@/hooks/use-pixel-tracking";
 import { Button } from "@/components/ui/button";
-import { Users, PlayCircle, Radio, ShoppingCart } from "lucide-react";
+import { Users, PlayCircle, Radio, ShoppingCart, Inbox } from "lucide-react"; // أضفنا Inbox
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,9 @@ export default function Courses() {
   const handleViewCourse = (courseId: number) => {
     navigate(`/course/${courseId}`);
   };
+
+  // تحويل البيانات لمصفوفة فارغة في حال كانت null أو undefined لضمان استقرار الكود
+  const safeCourses = Array.isArray(courses) ? courses : [];
 
   return (
     <section id="courses" className="py-20">
@@ -67,9 +70,21 @@ export default function Courses() {
               </div>
             ))}
           </div>
+        ) : safeCourses.length === 0 ? (
+          /* حالة عدم وجود بيانات: بدلاً من ترك الصفحة فاضية، نعرض رسالة احترافية */
+          <motion.div 
+            className="text-center py-20 bg-muted/30 rounded-3xl border-2 border-dashed border-border"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <Inbox className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-20" />
+            <h3 className="text-xl font-medium text-muted-foreground">
+              {t("courses.noCourses") || "قريباً سيتم إضافة دورات جديدة للأكاديمية"}
+            </h3>
+          </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {courses?.map((course, index) => {
+            {safeCourses.map((course, index) => {
               const isLive = course.courseType === "live";
               return (
                 <motion.div

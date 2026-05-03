@@ -164,8 +164,8 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3 overflow-y-auto max-h-[280px]">
-              {activity?.slice(0, 8).map((item) => (
-                <div key={item.id} className="flex gap-3 items-start">
+            {(Array.isArray(activity) ? activity : []).slice(0, 5).map((item) => (
+                 <div key={item.id} className="flex gap-3 items-start">
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${activityBadge(item.type)}`}>
                     {item.type === "enrollment" ? "Enrolled" : item.type === "payment" ? "Paid" : item.type === "course_created" ? "Course" : "Lesson"}
                   </span>
@@ -174,7 +174,7 @@ export default function Dashboard() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(item.createdAt)}</p>
                   </div>
                 </div>
-              ))}
+))}
             </div>
           )}
         </div>

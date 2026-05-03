@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Moon, Sun, Languages } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { JoinCourseModal } from "./JoinCourseModal";
 
 export default function Navbar() {
   const { lang, setLang, t } = useI18n();
   const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,9 +65,16 @@ export default function Navbar() {
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
 
-          <Button className="hidden sm:flex ml-2 rounded-full px-6">{t('hero.cta.join')}</Button>
+          <Button className="hidden sm:flex ml-2 rounded-full px-6" 
+          onClick={() => setIsModalOpen(true)}>{t('hero.cta.join')}</Button>
         </div>
       </div>
+      {/* استدعاء المودال بدون تمرير كورس (General Mode) */}
+      <JoinCourseModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        course={null} 
+      />
     </header>
   );
 }

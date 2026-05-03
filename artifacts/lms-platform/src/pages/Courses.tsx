@@ -52,9 +52,12 @@ export default function Courses() {
         qc.invalidateQueries({ queryKey: getListCoursesQueryKey() });
         setDialogOpen(false);
         reset();
-        toast.success("Course created successfully");
+        toast.success("تم إنشاء الكورس بنجاح");
       },
-      onError: () => toast.error("Failed to create course"),
+      onError: (error: any) => {
+        console.error("Create Error:", error);
+        toast.error("فشل في إنشاء الكورس - تأكد من إدخال البيانات المطلوبة");
+      },
     },
   });
 
@@ -62,9 +65,9 @@ export default function Courses() {
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListCoursesQueryKey() });
-        toast.success("Course deleted");
+        toast.success("تم حذف الكورس");
       },
-      onError: () => toast.error("Failed to delete course"),
+      onError: () => toast.error("فشل في حذف الكورس"),
     },
   });
 
@@ -74,33 +77,58 @@ export default function Courses() {
     description: string;
     price: number;
     status: "active" | "draft" | "archived";
+    courseType: "recorded" | "live";
   }>({
-    defaultValues: { status: "draft", price: 0 },
+    defaultValues: { 
+      status: "draft", 
+      price: 0, 
+      courseType: "recorded" 
+    },
   });
 
-  const filtered = (courses ?? []).filter((c) => {
-    const matchSearch =
-      !search ||
-      c.title.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+ const coursesArray = Array.isArray(courses) 
+  ? courses 
+  : (courses as any)?.data || []; // جرب الوصول لـ .data لو كان Object
 
+const filtered = coursesArray.filter((c: any) => {
+  const matchSearch =
+    !search ||
+    c.title.toLowerCase().includes(search.toLowerCase()) ||
+    (c.titleAr && c.titleAr.includes(search));
+  const matchStatus = statusFilter === "all" || c.status === statusFilter;
+  return matchSearch && matchStatus;
+});
+
+const onSubmit = (data: any) => {
+  const payload = {
+    title: data.title,
+    titleAr: data.titleAr || null,
+    description: data.description || null,
+    price: Number(data.price),
+    status: data.status,
+    courseType: data.courseType || "recorded",
+  };
+
+  // جرب تبعت الـ payload مباشرة بدون JSON.stringify
+  createCourse.mutate({
+    body: payload, 
+  } as any);
+};
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto" dir="rtl">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-xl font-bold">{t("courses")}</h1>
         <Button onClick={() => setDialogOpen(true)} size="sm" className="gap-2">
           <Plus className="w-4 h-4" />
-          {t("createCourse")}
+          إضافة كورس جديد
         </Button>
       </div>
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            className="ps-9"
+            className="pr-9"
             placeholder={t("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -156,41 +184,43 @@ export default function Courses() {
                         <MoreVertical className="w-4 h-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="start">
                       <DropdownMenuItem asChild>
-                        <Link href={`/courses/${course.id}`} className="flex items-center gap-2">
+                        <Link href={`/courses/${course.id}`} className="flex items-center gap-2 cursor-pointer">
                           <Eye className="w-4 h-4" />
-                          {t("viewDetails")}
+                          عرض التفاصيل
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => deleteCourse.mutate({ id: course.id })}
+                        className="text-destructive cursor-pointer"
+                        onClick={() => {
+                          if (confirm("هل أنت متأكد من الحذف؟"))
+                            deleteCourse.mutate({ id: course.id });
+                        }}
                       >
-                        <Trash2 className="w-4 h-4 me-2" />
-                        {t("delete")}
+                        <Trash2 className="w-4 h-4 ml-2" />
+                        حذف
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
 
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm text-foreground truncate">{course.title}</h3>
+              <div className="flex-1 min-w-0 text-right">
+                <h3 className="font-semibold text-sm text-foreground truncate">{course.titleAr || course.title}</h3>
                 {course.description && (
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{course.description}</p>
                 )}
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t pt-3">
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5" />
                     {course.studentCount}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="w-3.5 h-3.5" />
-                    {course.moduleCount} modules
+                  <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
+                    {course.courseType === "live" ? "مباشر" : "مسجل"}
                   </span>
                 </div>
                 <span className="text-sm font-bold text-primary">${course.price}</span>
@@ -201,56 +231,56 @@ export default function Courses() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>{t("createCourse")}</DialogTitle>
+            <DialogTitle className="text-right">إضافة دورة جديدة</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={handleSubmit((data) =>
-              createCourse.mutate({
-                data: {
-                  title: data.title,
-                  titleAr: data.titleAr || undefined,
-                  description: data.description || undefined,
-                  price: Number(data.price),
-                  status: data.status,
-                },
-              })
-            )}
-            className="space-y-4"
-          >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
             <div>
-              <label className="text-sm font-medium">{t("name")} *</label>
-              <Input {...register("title", { required: true })} className="mt-1" placeholder="Course title" />
+              <label className="text-sm font-medium">اسم الكورس (EN) *</label>
+              <Input {...register("title", { required: true })} className="mt-1" placeholder="مثلاً: UI/UX Design" />
             </div>
             <div>
-              <label className="text-sm font-medium">{t("titleAr")}</label>
-              <Input {...register("titleAr")} className="mt-1" dir="rtl" placeholder="عنوان الدورة" />
+              <label className="text-sm font-medium">الاسم بالعربية</label>
+              <Input {...register("titleAr")} className="mt-1" placeholder="مثلاً: تصميم الواجهات" />
             </div>
             <div>
-              <label className="text-sm font-medium">{t("description")}</label>
-              <Input {...register("description")} className="mt-1" />
+              <label className="text-sm font-medium">وصف مختصر</label>
+              <Input {...register("description")} className="mt-1" placeholder="وصف سريع للكورس..." />
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">{t("price")} ($) *</label>
+                <label className="text-sm font-medium">السعر ($) *</label>
                 <Input {...register("price", { required: true })} type="number" min="0" step="0.01" className="mt-1" />
               </div>
               <div>
-                <label className="text-sm font-medium">{t("status")} *</label>
+                <label className="text-sm font-medium">حالة الكورس *</label>
                 <select
                   {...register("status")}
-                  className="mt-1 w-full h-9 px-3 border border-input rounded-md bg-background text-sm"
+                  className="mt-1 w-full h-10 px-3 border border-input rounded-md bg-background text-sm outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value="draft">{t("draft")}</option>
-                  <option value="active">{t("active")}</option>
-                  <option value="archived">{t("archived")}</option>
+                  <option value="draft">مسودة (Draft)</option>
+                  <option value="active">نشط (Active)</option>
+                  <option value="archived">مؤرشف (Archived)</option>
                 </select>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
-              <Button type="submit" disabled={createCourse.isPending}>{t("save")}</Button>
+
+            <div>
+              <label className="text-sm font-medium">نوع الكورس *</label>
+              <select
+                {...register("courseType")}
+                className="mt-1 w-full h-10 px-3 border border-input rounded-md bg-background text-sm outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="recorded">دروس مسجلة</option>
+                <option value="live">بث مباشر</option>
+              </select>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" type="button" className="flex-1" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+              <Button type="submit" className="flex-1" disabled={createCourse.isPending}>حفظ</Button>
             </DialogFooter>
           </form>
         </DialogContent>
